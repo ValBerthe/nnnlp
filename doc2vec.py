@@ -13,13 +13,14 @@ import random  # noqa
 import sys  # noqa
 import datetime  # noqa
 import time  # noqa
+import pickle # noqa
 
 start_time = time.clock()
 
 emotions = ["ANGER", "HAPPINESS", "SADNESS", "NEUTRAL", "HATE", "FUN", "LOVE"]
-EPOCHS = 20
+EPOCHS = 40
 VEC_DIMENSIONS = 400
-WINDOW_SIZE = 25
+WINDOW_SIZE = 20
 
 
 def build_dictionary():
@@ -28,6 +29,7 @@ def build_dictionary():
     print("\nOpening dictionary...\n")
     tweets = open(
         "./Sentiment-Analysis-Dataset/formatted_corpus.txt",
+        # "./Training_set.txt",
         "r",
         encoding="utf-8"
     ).read().splitlines()
@@ -71,6 +73,7 @@ def build_model(training_data):
         shuffled = list(training_data)
         random.shuffle(shuffled)
         model.train(shuffled, total_words=n_count, epochs=epoch)
+        del shuffled
     model.save('./dicts/dict_full_data_%se_%sw.d2v' % (EPOCHS, WINDOW_SIZE))
     print('Model saved in %ss' % (round(time.clock() - start_time, 2)))
     return model
@@ -81,27 +84,37 @@ if "-b" in sys.argv:
     dictionary = build_dictionary()
     '''
     open("formatted_tweets.txt", "w", encoding="utf-8").write(
-        "%s" % dictionary
+        "%s" % (dictionary)
     )
     '''
     model = build_model(dictionary)
 else:
-    model = Doc2Vec.load("./dicts/dict_full_data_3e_5w.d2v")
-print("Most similar to \"good\": %s" % (model.most_similar("pizza")))
+    model = Doc2Vec.load("./dicts/dict_full_data_20e_25w.d2v")
+print("Most similar to \"good\": %s" % (model.most_similar("good")))
 
-train_arrays = np.zeros((n_count, VEC_DIMENSIONS))
-train_labels = np.zeros(n_count)
-test_arrays = np.zeros((n_count, VEC_DIMENSIONS))
-test_labels = np.zeros(n_count)
+if "-c" in sys.argv:
+    train_arrays = np.zeros((n_count, VEC_DIMENSIONS))
+    train_labels = np.zeros(n_count)
+    test_arrays = np.zeros((n_count, VEC_DIMENSIONS))
+    test_labels = np.zeros(n_count)
 
-for i in tqdm(range(n_count)):
-    train_arrays[i] = model.infer_vector(training_data[i])
-    train_labels[i] = classes[i]
-    test_arrays[i] = model.infer_vector(training_data[i])
-    test_labels[i] = classes[i]
+    for i in tqdm(range(n_count)):
+        train_arrays[i] = model.infer_vector(
+            utils.simple_preprocess(training_data[i])
+        )
+        train_labels[i] = classes[i]
+        test_arrays[i] = model.infer_vector(
+            utils.simple_preprocess(training_data[i])
+        )
+        test_labels[i] = classes[i]
 
-classifier = LogisticRegression()
-classifier.fit(train_arrays, train_labels)
+    print("train_data: %s" % (training_data[:5]))
+
+    classifier = LogisticRegression()
+    classifier.fit(train_arrays, train_labels)
+    pickle.dump(classifier, open("classifier.sav", "wb"))
+else:
+    classifier = pickle.load(open("classifier.sav", "wb"))
 accuracy = classifier.score(test_arrays, test_labels)
 print("Accuracy: %s" % (accuracy))
 with open("log.txt", "a") as log:
@@ -122,12 +135,13 @@ with open("log.txt", "a") as log:
     )
 
 if "-p" in sys.argv:
-    input_phrase = input("What\'s up today ?\n")
-    inferred_vector = model.infer_vector(input_phrase.split())
-    sims = model.docvecs.most_similar(
-        [inferred_vector], topn=len(model.docvecs))
-    print("Estimated emotion: " + emotions[
-        classifier.predict([inferred_vector])[0].astype(int)])
+    while True:
+        input_phrase = input("What\'s up today ?\n")
+        inferred_vector = model.infer_vector(input_phrase.split())
+        sims = model.docvecs.most_similar(
+            [inferred_vector], topn=len(model.docvecs))
+        print("Estimated emotion: " + emotions[
+            classifier.predict([inferred_vector])[0].astype(int)])
 else:
     # print("MOST SIMILAR WORDS:" + str(model.most_similar("pizza")))
     # print("Most similar vector: %s %s %s" % (
