@@ -17,10 +17,16 @@ import pickle # noqa
 
 start_time = time.clock()
 
+# CONSTANTS
+
 emotions = ["ANGER", "HAPPINESS", "SADNESS", "NEUTRAL", "HATE", "FUN", "LOVE"]
-EPOCHS = 40
+EPOCHS = 3
 VEC_DIMENSIONS = 400
 WINDOW_SIZE = 20
+DICT_PATH = "./Sentiment-Analysis-Dataset/formatted_corpus.txt"
+TRAINING_SET_PATH = "./Training_set.txt"
+CURRENT_DICT_PATH = "./dicts/dict_full_data_20e_25w.d2v"
+WORD_TO_TEST = "good"
 
 
 def build_dictionary():
@@ -28,7 +34,7 @@ def build_dictionary():
     formatted_tweets = []
     print("\nOpening dictionary...\n")
     tweets = open(
-        "./Sentiment-Analysis-Dataset/formatted_corpus.txt",
+        DICT_PATH,
         # "./Training_set.txt",
         "r",
         encoding="utf-8"
@@ -47,7 +53,7 @@ def build_dataset():
     indexes = []
     print("\nOpening dataset...\n")
     tweets = open(
-        "./Training_set.txt",
+        TRAINING_SET_PATH,
         "r",
         encoding="utf-8"
     ).read().splitlines()
@@ -67,7 +73,8 @@ def build_model(training_data):
         size=VEC_DIMENSIONS,
         sample=1e-4,
         negative=5,
-        workers=7)
+        workers=8
+    )
     model.build_vocab(training_data)
     for epoch in tqdm(range(EPOCHS)):
         shuffled = list(training_data)
@@ -82,15 +89,12 @@ def build_model(training_data):
 training_data, n_count, classes, indexes = build_dataset()
 if "-b" in sys.argv:
     dictionary = build_dictionary()
-    '''
-    open("formatted_tweets.txt", "w", encoding="utf-8").write(
-        "%s" % (dictionary)
-    )
-    '''
     model = build_model(dictionary)
 else:
-    model = Doc2Vec.load("./dicts/dict_full_data_20e_25w.d2v")
-print("Most similar to \"good\": %s" % (model.most_similar("good")))
+    model = Doc2Vec.load(CURRENT_DICT_PATH)
+print("\nMost similar to \"%s\": %s" % (
+    WORD_TO_TEST, model.most_similar(WORD_TO_TEST))
+)
 
 if "-c" in sys.argv:
     train_arrays = np.zeros((n_count, VEC_DIMENSIONS))
@@ -108,15 +112,13 @@ if "-c" in sys.argv:
         )
         test_labels[i] = classes[i]
 
-    print("train_data: %s" % (training_data[:5]))
-
     classifier = LogisticRegression()
     classifier.fit(train_arrays, train_labels)
     pickle.dump(classifier, open("classifier.sav", "wb"))
 else:
     classifier = pickle.load(open("classifier.sav", "wb"))
 accuracy = classifier.score(test_arrays, test_labels)
-print("Accuracy: %s" % (accuracy))
+print("\nAccuracy: %s" % (accuracy))
 with open("log.txt", "a") as log:
     log.write(
         "%s: {"
