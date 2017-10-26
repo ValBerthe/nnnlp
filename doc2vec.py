@@ -73,14 +73,11 @@ def build_model(training_data):
         size=VEC_DIMENSIONS,
         sample=1e-4,
         negative=5,
-        workers=8
+        workers=8,
+        iter=EPOCHS
     )
     model.build_vocab(training_data)
-    for epoch in tqdm(range(EPOCHS)):
-        shuffled = list(training_data)
-        random.shuffle(shuffled)
-        model.train(shuffled, total_words=n_count, epochs=epoch)
-        del shuffled
+    model.train(list(training_data), total_words=n_count, epochs=model.iter)
     model.save('./dicts/dict_full_data_%se_%sw.d2v' % (EPOCHS, WINDOW_SIZE))
     print('Model saved in %ss' % (round(time.clock() - start_time, 2)))
     return model
@@ -112,7 +109,7 @@ if "-c" in sys.argv:
         )
         test_labels[i] = classes[i]
 
-    classifier = LogisticRegression()
+    classifier = LogisticRegression(multi_class="multinomial")
     classifier.fit(train_arrays, train_labels)
     pickle.dump(classifier, open("classifier.sav", "wb"))
 else:
@@ -144,9 +141,3 @@ if "-p" in sys.argv:
             [inferred_vector], topn=len(model.docvecs))
         print("Estimated emotion: " + emotions[
             classifier.predict([inferred_vector])[0].astype(int)])
-else:
-    # print("MOST SIMILAR WORDS:" + str(model.most_similar("pizza")))
-    # print("Most similar vector: %s %s %s" % (
-    #    sims[0], " : ", training_data[sims[0][0]]))
-    print("Estimated emotion: %s" % (
-        emotions[classifier.predict([train_arrays[1000]])[0].astype(int)]))
