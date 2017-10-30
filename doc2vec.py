@@ -22,11 +22,12 @@ start_time = time.clock()
 emotions = ["ANGER", "HAPPINESS", "SADNESS", "NEUTRAL", "HATE", "FUN", "LOVE"]
 EPOCHS = 3
 VEC_DIMENSIONS = 400
-WINDOW_SIZE = 20
+WINDOW_SIZE = 100
 DICT_PATH = "./Sentiment-Analysis-Dataset/formatted_corpus.txt"
 TRAINING_SET_PATH = "./Training_set.txt"
-CURRENT_DICT_PATH = "./dicts/dict_full_data_20e_25w.d2v"
+CURRENT_DICT_PATH = "./dicts/dict_full_data_40e_20w.d2v"
 WORD_TO_TEST = "good"
+CLASSIFIER_PATH = "classifier.sav"
 
 
 def build_dictionary():
@@ -93,7 +94,8 @@ if "-b" in sys.argv:
 else:
     model = Doc2Vec.load(CURRENT_DICT_PATH)
 print("\nMost similar to \"%s\": %s" % (
-    WORD_TO_TEST, model.most_similar(WORD_TO_TEST))
+        WORD_TO_TEST, model.most_similar(WORD_TO_TEST)
+    )
 )
 
 if "-c" in sys.argv:
@@ -112,11 +114,11 @@ if "-c" in sys.argv:
         )
         test_labels[i] = classes[i]
 
-    classifier = LogisticRegression()
+    classifier = LogisticRegression(multi_class="multinomial", solver="sag")
     classifier.fit(train_arrays, train_labels)
-    pickle.dump(classifier, open("classifier.sav", "wb"))
+    pickle.dump(classifier, open(CLASSIFIER_PATH, "wb"))
 else:
-    classifier = pickle.load(open("classifier.sav", "wb"))
+    classifier = pickle.load(open(CLASSIFIER_PATH, "wb"))
 accuracy = classifier.score(test_arrays, test_labels)
 print("\nAccuracy: %s" % (accuracy))
 with open("log.txt", "a") as log:
@@ -144,6 +146,13 @@ if "-p" in sys.argv:
             [inferred_vector], topn=len(model.docvecs))
         print("Estimated emotion: " + emotions[
             classifier.predict([inferred_vector])[0].astype(int)])
+        print("Similarity tweet: %s" % (
+            model.docvecs.similarity(
+                inferred_vector,
+                model.infer_vector(
+                    "Brazil was very disappointing in the last football match...".split()))
+            )
+        )
 else:
     # print("MOST SIMILAR WORDS:" + str(model.most_similar("pizza")))
     # print("Most similar vector: %s %s %s" % (
