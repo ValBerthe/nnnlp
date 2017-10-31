@@ -9,6 +9,7 @@ from tqdm import tqdm  # noqa
 
 import numpy as np  # noqa
 from sklearn.linear_model import LogisticRegression  # noqa
+from sklearn import svm  # noqa
 import random  # noqa
 import sys  # noqa
 import datetime  # noqa
@@ -146,13 +147,6 @@ if "-p" in sys.argv:
             [inferred_vector], topn=len(model.docvecs))
         print("Estimated emotion: " + emotions[
             classifier.predict([inferred_vector])[0].astype(int)])
-        print("Similarity tweet: %s" % (
-            model.docvecs.similarity(
-                inferred_vector,
-                model.infer_vector(
-                    "Brazil was very disappointing in the last football match...".split()))
-            )
-        )
 else:
     # print("MOST SIMILAR WORDS:" + str(model.most_similar("pizza")))
     # print("Most similar vector: %s %s %s" % (
