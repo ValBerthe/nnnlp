@@ -21,29 +21,6 @@ import re  # noqa
 class classifier:
     """Classify a tweet in several given emotions."""
 
-    start_time = time.clock()
-
-    # CONSTANTS
-
-    emotions = [
-        "ANGER",
-        "HAPPINESS",
-        "SADNESS",
-        "NEUTRAL",
-        "HATE",
-        "FUN",
-        "LOVE"
-    ]
-    EPOCHS = 3
-    VEC_DIMENSIONS = 25
-    WINDOW_SIZE = 100
-    DICT_PATH = "./Sentiment-Analysis-Dataset/formatted_corpus.txt"
-    TRAINING_SET_PATH = "./Training_set.txt"
-    CURRENT_DICT_PATH = "./dicts/dict_full_data_40e_20w.d2v"
-    WORD_TO_TEST = "good"
-    CLASSIFIER_PATH = "classifier.sav"
-    GLOVE_PATH = "glove.twitter.27B.%sd.txt" % VEC_DIMENSIONS
-
     def format_tweet(self, tweet):
         """Format the weet according to the dictionary's' rules."""
         def format_hashtag(hashtag):
@@ -90,6 +67,7 @@ class classifier:
 
     def build_dictionary(self):
         """Build the dictionary."""
+        # start_time = time.clock()
         text_vectors = open(
             self.GLOVE_PATH, "r", encoding="utf-8"
         ).read().splitlines()
@@ -98,29 +76,147 @@ class classifier:
         regex1 = re.compile(r"^([^ ])+")
         regex2 = re.compile(r"(\-?[0-9]+(\.[0-9]+(e-[0-9]+)?)? ?)+")
         for index, line in tqdm(enumerate(text_vectors)):
+            print(index)
             words[index] = regex1.search(line).group(0)
             embeddings[index] = regex2.search(line).group(0).split()
         return words, embeddings
 
-    def build_dataset(self):
+    def build_dataset(self, data_file):
         """Build the dataset."""
-        formatted_tweets = []
-        classes = []
-        indexes = []
         print("\nOpening dataset...\n")
         tweets = open(
-            self.TRAINING_SET_PATH,
+            data_file,
             "r",
             encoding="utf-8"
         ).read().splitlines()
+        embeddings = [""] * len(tweets)
+        classes = [""] * len(tweets)
         for index, tweet in tqdm(enumerate(tweets)):
             tweet_data = tweet.split(" ///")
-            classes.append(self.emotions.index(tweet_data[0]))
-            indexes.append(str(index))
-            formatted_tweets.append(self.format_tweet(tweet_data[1]))
-        return list(formatted_tweets), len(tweets), classes, indexes
+            class_vec = np.zeros(7)
+            class_vec[self.emotions.index(tweet_data[0])] = 1
+            classes[index] = class_vec
+            embeddings[index] = self.lookup_tweet(
+                self.format_tweet(tweet_data[1])
+            )
+        return embeddings, classes
 
-    words, embeddings = build_dictionary()
-    print("EMBEDDINGS: %s %s" % (embeddings[:5], words[:100]))
-    training_data, n_count, classes, indexes = build_dataset()
-    print("TRAININ_DATAG: %s" % (training_data[:20]))
+    def lookup_tweet(self, tweet):
+        """Lookup table for every words in the tweet."""
+        tokenized_tweet = self.format_tweet(tweet)
+        tokenized_words = tokenized_tweet.split()
+        embedded_tweet = [[]] * len(tokenized_words)
+        for i, word in enumerate(tokenized_words):
+            if word in self.dict_words:
+                embedded_tweet[i] = self.dict_embeddings[
+                    self.dict_words.index(word)
+                ]
+            else:
+                embedded_tweet[i] = self.dict_embeddings[
+                    self.dict_words.index("<unknown>")
+                ]
+        return embedded_tweet
+
+    def pad_dataset(self, dataset):
+        """Add padding to the dataset so the sequence length is fixed."""
+        padded_dataset = np.zeros((
+            len(dataset),
+            self.maxlen,
+            self.VEC_DIMENSIONS
+        ))
+        for index, tweet in enumerate(dataset):
+            padded_dataset[index][:len(tweet)] = np.array(tweet)
+        return padded_dataset
+
+    def __init__(self):
+        """Execute primary functions and define constants."""
+        # Constants accessible in "model.py"
+        self.emotions = [
+            "ANGER",
+            "HAPPINESS",
+            "SADNESS",
+            "NEUTRAL",
+            "HATE",
+            "FUN",
+            "LOVE"
+        ]
+        # Choose Embedding dimensions among the values : [25, 50, 100, 200]
+        self.VEC_DIMENSIONS = 100
+        self.DICT_PATH = "./Sentiment-Analysis-Dataset/formatted_corpus.txt"
+        self.TRAINING_SET_PATH = "./Training_set.txt"
+        self.TEST_SET_PATH = "./Test_set.txt"
+        self.CURRENT_DICT_PATH = "./dicts/dict_full_data_40e_20w.d2v"
+        self.WORD_TO_TEST = "good"
+        self.CLASSIFIER_PATH = "classifier.sav"
+        self.GLOVE_PATH = "glove.twitter.27B.%sd.txt" % self.VEC_DIMENSIONS
+        # If "-b" is specified in the command line, then build the embedded
+        # vectors from the two datasets and dump them. Else, load the
+        # serialized objects.
+
+        if "-b" in sys.argv:
+            self.dict_words, self.dict_embeddings = self.build_dictionary()
+            self.training_data, self.training_classes = self.build_dataset(
+                self.TRAINING_SET_PATH
+            )
+            self.test_data, self.test_classes = self.build_dataset(
+                self.TEST_SET_PATH
+            )
+            pickle.dump(
+                self.dict_words,
+                open("bin/dict_words%s.pkl" % self.VEC_DIMENSIONS, "wb")
+            )
+            pickle.dump(
+                self.dict_embeddings,
+                open("bin/dict_emb%s.pkl" % self.VEC_DIMENSIONS, "wb")
+            )
+            pickle.dump(
+                self.training_data,
+                open("bin/embedded_train%s.pkl" % self.VEC_DIMENSIONS, "wb")
+            )
+            pickle.dump(
+                self.test_data,
+                open("bin/embedded_test%s.pkl" % self.VEC_DIMENSIONS, "wb")
+            )
+            pickle.dump(
+                self.training_classes,
+                open("bin/classes_train%s.pkl" % self.VEC_DIMENSIONS, "wb")
+            )
+            pickle.dump(
+                self.test_classes,
+                open("bin/classes_test%s.pkl" % self.VEC_DIMENSIONS, "wb")
+            )
+        else:
+            dict_words = open(
+                "bin/dict_words%s.pkl" % self.VEC_DIMENSIONS, "rb"
+            )
+            dict_emb = open(
+                "bin/dict_emb%s.pkl" % self.VEC_DIMENSIONS, "rb"
+            )
+            etrain = open(
+                "bin/embedded_train%s.pkl" % self.VEC_DIMENSIONS, "rb"
+            )
+            etest = open(
+                "bin/embedded_test%s.pkl" % self.VEC_DIMENSIONS, "rb"
+            )
+            ctrain = open(
+                "bin/classes_train%s.pkl" % self.VEC_DIMENSIONS, "rb"
+            )
+            ctest = open(
+                "bin/classes_test%s.pkl" % self.VEC_DIMENSIONS, "rb"
+            )
+            self.unpadded_train_data = pickle.load(etrain)
+            self.unpadded_test_data = pickle.load(etest)
+            self.maxlen = max(
+                len(max(self.unpadded_train_data, key=len)),
+                len(max(self.unpadded_test_data, key=len))
+            )
+            self.dict_words = pickle.load(dict_words)
+            self.dict_embeddings = pickle.load(dict_emb)
+            self.training_data = self.pad_dataset(
+                self.unpadded_train_data
+            )
+            self.test_data = self.pad_dataset(
+                self.unpadded_test_data
+            )
+            self.training_classes = pickle.load(ctrain)
+            self.test_classes = pickle.load(ctest)
