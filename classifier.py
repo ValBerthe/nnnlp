@@ -76,7 +76,6 @@ class classifier:
         regex1 = re.compile(r"^([^ ])+")
         regex2 = re.compile(r"(\-?[0-9]+(\.[0-9]+(e-[0-9]+)?)? ?)+")
         for index, line in tqdm(enumerate(text_vectors)):
-            print(index)
             words[index] = regex1.search(line).group(0)
             embeddings[index] = regex2.search(line).group(0).split()
         return words, embeddings
