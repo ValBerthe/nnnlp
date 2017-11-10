@@ -5,17 +5,16 @@ You can send an email at: valentin@ohtsuki.ics.keio.ac.jp for the different dict
 
 Python dependencies:
 
-- gensim
 - numpy
-- sklearn
-- tqdm
+- tensorflow
 
 ## Usage
 
-As soon as you have the corpus of words, you can start training the dictionary.
+You can find the pre-trained embedded vectors here: https://www.dropbox.com/s/rhqkg08u75n97j1/glove.twitter.27B.100d.txt?dl=0
+All the tensorboards results are stored in the /runs dir.
+
+`model.py` describes the convolutional neural network, and `classifier.py` is the glove implementation.
 
 Flags:
 
-- -b: builds the dictionary. If you omit this flag, it will take the dictionary in the folder `dicts`, so choose the one that has the best results.
-- -c: will build the linear regression model. You can build a new one when you build another dictionary. If you omit this flag, `classifier.sav` will be used as the LR model.
-- -p: Allows you to test (classify) some sentences (tweets) by yourself.
+- `-b`: embeds the training_data and the test_data. It saves it in the dir `/bin`, so you might want to create it first.
