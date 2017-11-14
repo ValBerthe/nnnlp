@@ -11,7 +11,11 @@ Python dependencies:
 ## Usage
 
 You can find the pre-trained embedded vectors on the stanford.edu platform: https://nlp.stanford.edu/projects/glove/
+
 It is recommended to download the four pre-trained vector set trained from Twitter (dimensions 25, 50, 100, 200).
+
+----------
+
 All the tensorboards results are stored in the /runs dir.
 
 `model.py` describes the convolutional neural network, and `classifier.py` is the glove implementation.
