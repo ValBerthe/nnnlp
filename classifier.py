@@ -76,6 +76,7 @@ class classifier:
         regex1 = re.compile(r"^([^ ])+")
         regex2 = re.compile(r"(\-?[0-9]+(\.[0-9]+(e-[0-9]+)?)? ?)+")
         for index, line in tqdm(enumerate(text_vectors)):
+            print(index)
             words[index] = regex1.search(line).group(0)
             embeddings[index] = regex2.search(line).group(0).split()
         return words, embeddings
@@ -140,7 +141,7 @@ class classifier:
             "LOVE"
         ]
         # Choose Embedding dimensions among the values : [25, 50, 100, 200]
-        self.VEC_DIMENSIONS = 100
+        self.VEC_DIMENSIONS = 200
         self.DICT_PATH = "./Sentiment-Analysis-Dataset/formatted_corpus.txt"
         self.TRAINING_SET_PATH = "./Training_set.txt"
         self.TEST_SET_PATH = "./Test_set.txt"

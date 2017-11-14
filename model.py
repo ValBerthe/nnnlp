@@ -12,18 +12,9 @@ dropout_keep_prob = 0.5
 class model(object):
     """Specify the model class."""
 
-    def __init__(self):
-        """Define the init function."""
-        self.glove = classifier()
-        self.FILTER_SIZES = [3, 4, 5]
-        self.NUM_FILTERS = 100
-        self.EPOCHS = 40
-        self.BATCH_SIZE = 100
-        self.EVALUATE_EVERY = 100
-        self.CHECKPOINT_EVERY = 100
-        self.REG_LAMBDA = 0.05
+    def create_input_layer(self):
+        """Create the placeholders."""
         # Input layer.
-
         self.input_x = tf.placeholder(
             tf.float32, [None, None, self.glove.VEC_DIMENSIONS],
             name="input_x"
@@ -37,8 +28,9 @@ class model(object):
             tf.float32, name="dropout_keep_prob"
         )
 
+    def create_conv_layer(self, _index, _input):
+        """Create a convolutional layer followed by ReLu and max-pooling."""
         # Blocks of convolution layers
-        l2_loss = tf.constant(0.0)
         pooled_outputs = []
         for i, filter_size in enumerate(self.FILTER_SIZES):
             with tf.name_scope("conv-maxpool-%s" % filter_size):
@@ -51,26 +43,26 @@ class model(object):
                 # Weights
                 W = tf.Variable(
                     tf.truncated_normal(filter_shape, stddev=0.1),
-                    name="W"
+                    name="W%s" % _index
                 )
                 # Bias
                 b = tf.Variable(tf.constant(
-                    0.1,
+                    0.001,
                     shape=[self.NUM_FILTERS]),
-                    name="b"
+                    name="b%s" % _index
                 )
                 # Convolutional layer
                 conv_layer = tf.nn.conv2d(
-                    self.input_x,
+                    _input,
                     W,
                     strides=[1, 1, 1, 1],
                     padding="VALID",
-                    name="conv"
+                    name="conv%s" % _index
                 )
                 # ReLu / Non-linearity
                 h = tf.nn.relu(
                     tf.nn.bias_add(conv_layer, b),
-                    name="relu"
+                    name="relu%s" % _index
                 )
                 # Max-pooling
                 pooled = tf.nn.max_pool(
@@ -83,15 +75,47 @@ class model(object):
                     ],
                     strides=[1, 1, 1, 1],
                     padding="VALID",
-                    name="pool"
+                    name="pool%s" % _index
                 )
-                pooled_outputs.append(pooled)
+                pooled2 = tf.nn.avg_pool(
+                    h,
+                    ksize=[
+                        1,
+                        self.glove.maxlen - filter_size + 1,
+                        1,
+                        1
+                    ],
+                    strides=[1, 1, 1, 1],
+                    padding="VALID",
+                    name="pool%s" % _index
+                )
+                something = (pooled + pooled2)/2
+                pooled_outputs.append(something)
+        print("It should return pooled outputs")
+        return pooled_outputs
 
+    def __init__(self):
+        """Define the init function."""
+        self.glove = classifier()
+        self.FILTER_SIZES = [3, 4, 5]
+        self.NUM_FILTERS = 80
+        self.EPOCHS = 40
+        self.BATCH_SIZE = 128
+        self.EVALUATE_EVERY = 100
+        self.CHECKPOINT_EVERY = 100
+        self.REG_LAMBDA = 0.00001
+        l2_loss = tf.constant(0.0)
+
+        # Create input layer, named "self.input_x"
+        self.create_input_layer()
+
+        # Create a first convolutional layer
+        pooled_outputs = self.create_conv_layer(1, self.input_x)
+
+        # Concatenate the pooled outputs, and flattens the result
         n_filters_total = self.NUM_FILTERS * len(self.FILTER_SIZES)
         self.h_pool = tf.concat(pooled_outputs, 1)
         self.h_pool_flat = tf.reshape(self.h_pool, [-1, n_filters_total])
-        print("TIBO INSHAPE::::::::::::::::::")
-        print(self.h_pool_flat.shape)
 
         # Add dropout
         with tf.name_scope("dropout"):
