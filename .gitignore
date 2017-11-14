@@ -1,3 +1,6 @@
-dicts/
-log.txt
-Sentiment-Analysis-Dataset/
+glove.twitter.27B.100d.txt
+glove.twitter.27B.200d.txt
+glove.twitter.27B.25d.txt
+glove.twitter.27B.50d.txt
+runs/
+__pycache__/
